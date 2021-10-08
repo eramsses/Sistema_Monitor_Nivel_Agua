@@ -1,3 +1,6 @@
+//Notas musicales
+#include "notas.h"
+
 //Librerias
 #include <EEPROM.h>
 #include <Wire.h>
@@ -60,7 +63,7 @@ void setup() {
   //Inicialización de pines del sensor
   pinMode(GND_SENSOR, OUTPUT);//Pin de tierra para el sensor 0v
   pinMode(VCC_SENSOR, OUTPUT);//Pin de voltaje para el sensor +5v
-  digitalWrite(GND_SENSOR, LOW); // 0v activo 
+  digitalWrite(GND_SENSOR, LOW); // 0v activo
   digitalWrite(VCC_SENSOR, HIGH); //+5v activo
   pinMode(TRIG, OUTPUT);  // trigger como salida
   pinMode(ECHO, INPUT);    // echo como entrada
@@ -94,11 +97,15 @@ void setup() {
   EEPROM.get(16, altura);
   EEPROM.get(24, altura_max_agua);
 
+  notaFinal();
+
   //Llamar al efecto de inicio
   efectoInicial();
 
   //Boton para manejar la interrupción
   attachInterrupt(digitalPinToInterrupt(boton[BTN_MODO]), cambioModo, RISING);
+
+
 
 }
 
@@ -160,6 +167,7 @@ void cambioModo() {
       }
       if (valorBtnModo_flanco && valorBtnOK == HIGH) {
         modo = M_CONFIGURACION_ANCHO;
+        notaAdelante();
       }
       break;
     case M_CONFIGURACION_ANCHO:
@@ -168,6 +176,7 @@ void cambioModo() {
       }
       if (valorBtnModo_flanco && valorBtnOK == HIGH) {
         modo = M_CONFIGURACION_ALTO_SENSOR;
+        notaAdelante();
       }
       break;
     case M_CONFIGURACION_ALTO_SENSOR:
@@ -176,6 +185,7 @@ void cambioModo() {
       }
       if (valorBtnModo_flanco && valorBtnOK == HIGH) {
         modo = M_CONFIGURACION_ALTO_AGUA;
+        notaAdelante();
       }
       break;
     case M_CONFIGURACION_ALTO_AGUA:
@@ -184,6 +194,7 @@ void cambioModo() {
       }
       if (valorBtnModo_flanco && valorBtnOK == HIGH) {
         modo = M_CONFIGURACION_LARGO;
+        notaAtras();
       }
       break;
   }
@@ -366,7 +377,8 @@ void modoConfiguracionL() {
       lcd.print("                    ");
       lcd.setCursor(5, 3);
       lcd.print("Guardado!");
-      delay(1000);
+      notaAdelante();
+      delay(500);
       largo = miLargo;
       modo = M_CONFIGURACION_ANCHO;
     }
@@ -424,7 +436,8 @@ void modoConfiguracionA() {
       lcd.print("                    ");
       lcd.setCursor(5, 3);
       lcd.print("Guardado!");
-      delay(1000);
+      notaAdelante();
+      delay(500);
       ancho = miAncho;
       modo = M_CONFIGURACION_ALTO_SENSOR;
     }
@@ -481,7 +494,8 @@ void modoConfiguracionAltoSensor() {
       lcd.print("                    ");
       lcd.setCursor(5, 3);
       lcd.print("Guardado!");
-      delay(1000);
+      notaAdelante();
+      delay(500);
       altura = miAltura;
       modo = M_CONFIGURACION_ALTO_AGUA;
     }
@@ -543,7 +557,8 @@ void modoConfiguracionAltoAgua() {
       lcd.print("                    ");
       lcd.setCursor(5, 3);
       lcd.print("Saliendo!");
-      delay(1000);
+      notaFinal();
+      //delay(1000);
       altura_max_agua = miAltura;
       modo = M_MONITOR;
     }
@@ -603,4 +618,87 @@ void efectoInicial() {
 
   lcd.clear();
   //FIN DEL EFECTO INICIANDO
+}
+
+void notaAtras() {
+  int melodia[] = {
+    NOTE_E4, NOTE_D4, NOTE_C4, 0
+  };
+
+
+  // note durations: 4 = quarter note, 8 = eighth note, etc.:
+
+  int duracionDeNotas[] = {
+    8, 8, 8, 8
+  };
+
+  // iterate over the notes of the melody:
+  for (int estaNota = 0; estaNota < 4; estaNota++) {
+    // to calculate the note duration, take one second divided by the note type.
+    //e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc.
+    int duracionNota = 1000 / duracionDeNotas[estaNota] / 2;
+    tone(BUZZER, melodia[estaNota], duracionNota);
+    // to distinguish the notes, set a minimum time between them.
+    // the note's duration + 30% seems to work well:
+    int pausaEntreNotas = duracionNota * 1.30;
+    delay(pausaEntreNotas);
+    // stop the tone playing:
+    noTone(BUZZER);
+  }
+}
+
+void notaAdelante() {
+  int melodia[] = {
+    NOTE_C4, NOTE_D4, NOTE_E4, 0
+  };
+
+
+  // note durations: 4 = quarter note, 8 = eighth note, etc.:
+
+  int duracionDeNotas[] = {
+    8, 8, 8, 8
+  };
+
+  // iterate over the notes of the melody:
+  for (int estaNota = 0; estaNota < 4; estaNota++) {
+    // to calculate the note duration, take one second divided by the note type.
+    //e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc.
+    int duracionNota = 1000 / duracionDeNotas[estaNota] / 2;
+    tone(BUZZER, melodia[estaNota], duracionNota);
+    // to distinguish the notes, set a minimum time between them.
+    // the note's duration + 30% seems to work well:
+    int pausaEntreNotas = duracionNota * 1.30;
+    delay(pausaEntreNotas);
+    // stop the tone playing:
+    noTone(BUZZER);
+  }
+}
+
+void notaFinal() {
+  int melodia[] = {
+
+    NOTE_C4, NOTE_G3, NOTE_G3, NOTE_A3, NOTE_G3, 0, NOTE_B3, NOTE_C4
+
+  };
+
+
+  // note durations: 4 = quarter note, 8 = eighth note, etc.:
+
+  int duracionDeNotas[] = {
+    4, 8, 8, 4, 4, 4, 4, 4
+  };
+
+  // iterate over the notes of the melody:
+  for (int estaNota = 0; estaNota < 8; estaNota++) {
+    // to calculate the note duration, take one second divided by the note type.
+    //e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc.
+    int duracionNota = 1000 / duracionDeNotas[estaNota] / 2;
+    tone(BUZZER, melodia[estaNota], duracionNota);
+    // to distinguish the notes, set a minimum time between them.
+    // the note's duration + 30% seems to work well:
+    int pausaEntreNotas = duracionNota * 1.30;
+    delay(pausaEntreNotas);
+    // stop the tone playing:
+    noTone(BUZZER);
+  }
 }
