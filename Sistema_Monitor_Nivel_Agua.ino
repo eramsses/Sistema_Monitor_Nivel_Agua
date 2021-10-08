@@ -21,9 +21,10 @@ uint8_t valorBtnModo_flanco;
 
 
 //DEFINICIONES PARA SENSOR ULTRASONICO
-#define VCC_SENSOR A6
-#define TRIG A7 //Trigger en pin A7
-#define ECHO 10 //Echo en pin 10
+#define GND_SENSOR 10
+#define VCC_SENSOR 11
+#define TRIG 12 //Trigger en pin A7
+#define ECHO 13 //Echo en pin 10
 
 //DEFINICIONES PARA LEDs
 #define LED_AMARILLO 7
@@ -49,17 +50,21 @@ int dist = 0;
 unsigned int altura = 100, largo = 100, ancho = 100, altura_max_agua = 0;
 
 
-
+char hora[12];
+unsigned long tiempoPre, tiempoPas = 0;
+int H = 0, M = 0, S = 0;
 
 
 void setup() {
 
   //Inicialización de pines del sensor
+  pinMode(GND_SENSOR, OUTPUT);//Pin de tierra para el sensor 0v
   pinMode(VCC_SENSOR, OUTPUT);//Pin de voltaje para el sensor +5v
-  digitalWrite(VCC_SENSORC, HIGH); //+5v activo
+  digitalWrite(GND_SENSOR, LOW); // 0v activo 
+  digitalWrite(VCC_SENSOR, HIGH); //+5v activo
   pinMode(TRIG, OUTPUT);  // trigger como salida
   pinMode(ECHO, INPUT);    // echo como entrada
-
+  delay(100);
   //Inicialización de pines de los LEDs
   pinMode(LED_AMARILLO, OUTPUT);   // LED para bomba
   pinMode(LED_VERDE, OUTPUT);   // LED para marcar que esta entrando agua desde el proveedor
@@ -193,7 +198,6 @@ void modoMonitor() {
   lcd.setCursor(3, 0);
   lcd.print("* MONITOREO *");
 
-
   int d = 0;
   int altura_agua_cm = 0;
   float altura_agua_m =  0.00;
@@ -252,7 +256,7 @@ void modoLlenando() {
   S = 0;
 
   while (modo == M_LLENADO) {
-    //mostrarDistancia();
+    mostrarDistancia();
     tiempoPre = millis();
     mostrarTiempo();
   }
@@ -274,8 +278,8 @@ void mostrarDistancia() {
 
 void mostrarTiempo() {
   //manejo de tiempo
-  //tiempoPre = millis();
-  if (tiempoPre - tiempoPas > 999) {
+  //tiempoPre = micros();
+  if (tiempoPre - tiempoPas > 499) {
     S++;
     tiempoPas = tiempoPre;
   }
@@ -307,8 +311,8 @@ int obtenerDistancia() {
 
   duracion = pulseIn(ECHO, HIGH);  // con funcion pulseIn se espera un pulso
   // alto en Echo
-  distancia = duracion / 58.0;    // distancia medida en centimetros 58.2
-  delay(300);       // demora entre datos
+  distancia = duracion / 29.0; //58.0;    // distancia medida en centimetros 58.2
+  delay(100);       // demora entre datos
   return distancia;
 }
 
@@ -358,6 +362,8 @@ void modoConfiguracionL() {
 
     if (flancoSubida(BTN_OK)) {
       EEPROM.put(0, miLargo);
+      lcd.setCursor(0, 3);
+      lcd.print("                    ");
       lcd.setCursor(5, 3);
       lcd.print("Guardado!");
       delay(1000);
@@ -414,6 +420,8 @@ void modoConfiguracionA() {
 
     if (flancoSubida(BTN_OK)) {
       EEPROM.put(8, miAncho);
+      lcd.setCursor(0, 3);
+      lcd.print("                    ");
       lcd.setCursor(5, 3);
       lcd.print("Guardado!");
       delay(1000);
@@ -469,6 +477,8 @@ void modoConfiguracionAltoSensor() {
 
     if (flancoSubida(BTN_OK)) {
       EEPROM.put(16, miAltura);
+      lcd.setCursor(0, 3);
+      lcd.print("                    ");
       lcd.setCursor(5, 3);
       lcd.print("Guardado!");
       delay(1000);
@@ -524,8 +534,15 @@ void modoConfiguracionAltoAgua() {
 
     if (flancoSubida(BTN_OK)) {
       EEPROM.put(24, miAltura);
+      lcd.setCursor(0, 3);
+      lcd.print("                    ");
       lcd.setCursor(5, 3);
       lcd.print("Guardado!");
+      delay(1000);
+      lcd.setCursor(0, 3);
+      lcd.print("                    ");
+      lcd.setCursor(5, 3);
+      lcd.print("Saliendo!");
       delay(1000);
       altura_max_agua = miAltura;
       modo = M_MONITOR;
