@@ -21,6 +21,27 @@ uint8_t estado_boton[4]; //Guarda el estado de los botones
 uint8_t valorBtnOK;
 uint8_t valorBtnModo_flanco;
 
+byte check[] = {
+  B00000,
+  B00001,
+  B00011,
+  B10110,
+  B11100,
+  B01000,
+  B00000,
+  B00000
+};
+
+byte punto[] = {
+  B00011,
+  B00011,
+  B00000,
+  B00000,
+  B00000,
+  B00000,
+  B00000,
+  B00000
+};
 
 
 //DEFINICIONES PARA SENSOR ULTRASONICO
@@ -43,6 +64,12 @@ uint8_t valorBtnModo_flanco;
 #define M_CONFIGURACION_ANCHO 3
 #define M_CONFIGURACION_ALTO_SENSOR 4
 #define M_CONFIGURACION_ALTO_AGUA 5
+
+//DEFINICIONES DE LAS DIRECCIONES DE MEMORIA EEPROM PARA LAS MEDIDAS DEL TANQUE
+#define EE_LARGO 0
+#define EE_ANCHO 2
+#define EE_ALTURA 4
+#define EE_ALTURA_AGUA 6
 
 #define ALTURA_MAXIMA 400;
 
@@ -71,6 +98,8 @@ void setup() {
   //Inicialización de pines de los LEDs
   pinMode(LED_AMARILLO, OUTPUT);   // LED para bomba
   pinMode(LED_VERDE, OUTPUT);   // LED para marcar que esta entrando agua desde el proveedor
+  //digitalWrite(LED_AMARILLO, HIGH);
+  //digitalWrite(LED_VERDE, HIGH);
 
   //Botones del menú en modo PULLUP
   pinMode(boton[BTN_MODO], INPUT_PULLUP);
@@ -78,7 +107,8 @@ void setup() {
   pinMode(boton[BTN_DWN], INPUT_PULLUP);
   pinMode(boton[BTN_UP], INPUT_PULLUP);
 
-
+  lcd.createChar(0, check);
+  lcd.createChar(1, punto);
 
   //Inicializar botones en ALTO de array de estados para verificar que hay flaco de subida
   estado_boton[0] = HIGH;
@@ -92,21 +122,16 @@ void setup() {
   lcd.clear(); //Limpiar cualquier caracter extraño
 
   //Iniciar las medidas del tanque leyendo desde la EEPROM en sus respectivas variables
-  EEPROM.get(0, largo);
-  EEPROM.get(8, ancho);
-  EEPROM.get(16, altura);
-  EEPROM.get(24, altura_max_agua);
-
-  notaFinal();
+  EEPROM.get(EE_LARGO, largo);
+  EEPROM.get(EE_ANCHO, ancho);
+  EEPROM.get(EE_ALTURA, altura);
+  EEPROM.get(EE_ALTURA_AGUA, altura_max_agua);
 
   //Llamar al efecto de inicio
   efectoInicial();
 
   //Boton para manejar la interrupción
   attachInterrupt(digitalPinToInterrupt(boton[BTN_MODO]), cambioModo, RISING);
-
-
-
 }
 
 void loop() {
@@ -167,7 +192,7 @@ void cambioModo() {
       }
       if (valorBtnModo_flanco && valorBtnOK == HIGH) {
         modo = M_CONFIGURACION_ANCHO;
-        notaAdelante();
+
       }
       break;
     case M_CONFIGURACION_ANCHO:
@@ -176,7 +201,7 @@ void cambioModo() {
       }
       if (valorBtnModo_flanco && valorBtnOK == HIGH) {
         modo = M_CONFIGURACION_ALTO_SENSOR;
-        notaAdelante();
+
       }
       break;
     case M_CONFIGURACION_ALTO_SENSOR:
@@ -185,7 +210,7 @@ void cambioModo() {
       }
       if (valorBtnModo_flanco && valorBtnOK == HIGH) {
         modo = M_CONFIGURACION_ALTO_AGUA;
-        notaAdelante();
+
       }
       break;
     case M_CONFIGURACION_ALTO_AGUA:
@@ -194,7 +219,7 @@ void cambioModo() {
       }
       if (valorBtnModo_flanco && valorBtnOK == HIGH) {
         modo = M_CONFIGURACION_LARGO;
-        notaAtras();
+
       }
       break;
   }
@@ -206,10 +231,12 @@ void cambioModo() {
 
 void modoMonitor() {
 
+
   lcd.setCursor(3, 0);
   lcd.print("* MONITOREO *");
 
   int d = 0;
+  int d_a = 0;
   int altura_agua_cm = 0;
   float altura_agua_m =  0.00;
   float largo_m = 0.00;
@@ -218,6 +245,10 @@ void modoMonitor() {
   float porcentaje_agua = 0.00;
   int p_a = 0;
 
+  notaAtras();
+
+  boolean p = true;
+ 
   while (modo == M_MONITOR) {
 
     //mostrarDistancia();
@@ -236,22 +267,30 @@ void modoMonitor() {
     float vol_agua_barriles = (float)vol_agua_m * 6.29;
     float vol_agua_galones = (float)vol_agua_barriles * 42;
 
-    lcd.setCursor(0, 1);
-    lcd.print("                    ");
-    lcd.setCursor(0, 1); lcd.print(altura_agua_m); lcd.print(" m de agua");
+    if (p) {
+      lcd.setCursor(19, 0);
+      lcd.write((byte)1);
+    } else {
+      lcd.setCursor(19, 0);
+      lcd.print(" ");
+    }
+    p = !p;
 
-    lcd.setCursor(0, 2);
-    lcd.print("                    ");
-    lcd.setCursor(0, 2); lcd.print(vol_agua_galones); lcd.print(" gal. "); lcd.print(p_a); lcd.print("%");
+    if (d_a != d) {
+      d_a = d;
+      lcd.setCursor(0, 1);
+      lcd.print("                    ");
+      lcd.setCursor(0, 1); lcd.print(altura_agua_m); lcd.print(" m de agua");
 
-    lcd.setCursor(0, 3);
-    lcd.print("                    ");
-    lcd.setCursor(0, 3);
-    lcd.print("Hay "); lcd.print(vol_agua_barriles); lcd.print(" barriles");
+      lcd.setCursor(0, 2);
+      lcd.print("                    ");
+      lcd.setCursor(0, 2); lcd.print(vol_agua_galones); lcd.print(" gal. "); lcd.print(p_a); lcd.print("%");
 
-
-    //lcd.setCursor(0, 3);
-    //lcd.print("  M    G    -    +");
+      lcd.setCursor(0, 3);
+      lcd.print("                    ");
+      lcd.setCursor(0, 3);
+      lcd.print("Hay "); lcd.print(vol_agua_barriles); lcd.print(" barriles");
+    }
     delay(500);
   }
 }
@@ -266,14 +305,28 @@ void modoLlenando() {
   M = 0;
   S = 0;
 
+  notaAdelante();
+
+  boolean p = true;
+
   while (modo == M_LLENADO) {
     mostrarDistancia();
     tiempoPre = millis();
     mostrarTiempo();
+
+    if (p) {
+      lcd.setCursor(19, 0);
+      lcd.write((byte)1);
+    } else {
+      lcd.setCursor(19, 0);
+      lcd.print(" ");
+    }
+    p = !p;
+
+
+    
   }
 }
-
-
 
 void mostrarDistancia() {
   dist = obtenerDistancia();
@@ -335,11 +388,16 @@ void modoConfiguracionL() {
   lcd.print("Largo: ");
 
   lcd.setCursor(0, 3);
-  lcd.print("  M    G    -    +");
+  lcd.print("  M    ");
+  lcd.setCursor(7, 3);
+  lcd.write((byte)0);
+  lcd.setCursor(12, 3);
+  lcd.print("-    +");
 
   int miLargo = 0;
   char largoTxt[8];
-  EEPROM.get(0, miLargo);
+
+  EEPROM.get(EE_LARGO, miLargo);
   if (miLargo == -1 || miLargo < 40) {
     miLargo = 100;
   }
@@ -352,27 +410,37 @@ void modoConfiguracionL() {
     if (flancoSubida(BTN_UP)) {
       if (miLargo < 3000) {
         miLargo++;
+
+        notaMas();
+
         sprintf(largoTxt, "%02d cm", miLargo);
         lcd.setCursor(0, 2);
         lcd.print("                    ");
         lcd.setCursor(0, 2);
         lcd.print(largoTxt);
+      } else {
+        notaError();
       }
     }
 
     if (flancoSubida(BTN_DWN)) {
       if (miLargo > 0) {
         miLargo--;
+
+        notaMenos();
+
         sprintf(largoTxt, "%02d cm", miLargo);
         lcd.setCursor(0, 2);
         lcd.print("                    ");
         lcd.setCursor(0, 2);
         lcd.print(largoTxt);
+      } else {
+        notaError();
       }
     }
 
     if (flancoSubida(BTN_OK)) {
-      EEPROM.put(0, miLargo);
+      EEPROM.put(EE_LARGO, miLargo);
       lcd.setCursor(0, 3);
       lcd.print("                    ");
       lcd.setCursor(5, 3);
@@ -394,11 +462,16 @@ void modoConfiguracionA() {
   lcd.print("Ancho: ");
 
   lcd.setCursor(0, 3);
-  lcd.print("  M    G    -    +");
+  lcd.print("  M    ");
+  lcd.setCursor(7, 3);
+  lcd.write((byte)0);
+  lcd.setCursor(12, 3);
+  lcd.print("-    +");
 
   int miAncho = 0;
   char anchoTxt[8];
-  EEPROM.get(8, miAncho);
+
+  EEPROM.get(EE_ANCHO, miAncho);
   if (miAncho == -1 || miAncho < 40) {
     miAncho = 100;
   }
@@ -411,27 +484,37 @@ void modoConfiguracionA() {
     if (flancoSubida(BTN_UP)) {
       if (miAncho < 3000) {
         miAncho++;
+
+        notaMas();
+
         sprintf(anchoTxt, "%02d cm", miAncho);
         lcd.setCursor(0, 2);
         lcd.print("                    ");
         lcd.setCursor(0, 2);
         lcd.print(anchoTxt);
+      } else {
+        notaError();
       }
     }
 
     if (flancoSubida(BTN_DWN)) {
       if (miAncho > 0) {
         miAncho--;
+
+        notaMenos();
+
         sprintf(anchoTxt, "%02d cm", miAncho);
         lcd.setCursor(0, 2);
         lcd.print("                    ");
         lcd.setCursor(0, 2);
         lcd.print(anchoTxt);
+      } else {
+        notaError();
       }
     }
 
     if (flancoSubida(BTN_OK)) {
-      EEPROM.put(8, miAncho);
+      EEPROM.put(EE_ANCHO, miAncho);
       lcd.setCursor(0, 3);
       lcd.print("                    ");
       lcd.setCursor(5, 3);
@@ -452,11 +535,16 @@ void modoConfiguracionAltoSensor() {
   lcd.print("Altura del Sensor: ");
 
   lcd.setCursor(0, 3);
-  lcd.print("  M    G    -    +");
+  lcd.print("  M    ");
+  lcd.setCursor(7, 3);
+  lcd.write((byte)0);
+  lcd.setCursor(12, 3);
+  lcd.print("-    +");
 
   int miAltura = 0;
   char alturaTxt[8];
-  EEPROM.get(16, miAltura);
+
+  EEPROM.get(EE_ALTURA, miAltura);
   if (miAltura == -1 || miAltura < 40) {
     miAltura = 100;
   }
@@ -469,27 +557,37 @@ void modoConfiguracionAltoSensor() {
     if (flancoSubida(BTN_UP)) {
       if (miAltura < 600) {
         miAltura++;
+
+        notaMas();
+
         sprintf(alturaTxt, "%02d cm", miAltura);
         lcd.setCursor(0, 2);
         lcd.print("                    ");
         lcd.setCursor(0, 2);
         lcd.print(alturaTxt);
+      } else {
+        notaError();
       }
     }
 
     if (flancoSubida(BTN_DWN)) {
       if (miAltura > 40) {
         miAltura--;
+
+        notaMenos();
+
         sprintf(alturaTxt, "%02d cm", miAltura);
         lcd.setCursor(0, 2);
         lcd.print("                    ");
         lcd.setCursor(0, 2);
         lcd.print(alturaTxt);
+      } else {
+        notaError();
       }
     }
 
     if (flancoSubida(BTN_OK)) {
-      EEPROM.put(16, miAltura);
+      EEPROM.put(EE_ALTURA, miAltura);
       lcd.setCursor(0, 3);
       lcd.print("                    ");
       lcd.setCursor(5, 3);
@@ -510,11 +608,16 @@ void modoConfiguracionAltoAgua() {
   lcd.print("Altura Maxima Agua: ");
 
   lcd.setCursor(0, 3);
-  lcd.print("  M    G    -    +");
+  lcd.print("  M    ");
+  lcd.setCursor(7, 3);
+  lcd.write((byte)0);
+  lcd.setCursor(12, 3);
+  lcd.print("-    +");
 
   int miAltura = 0;
   char alturaTxt[8];
-  EEPROM.get(24, miAltura);
+
+  EEPROM.get(EE_ALTURA_AGUA, miAltura);
   if (miAltura == -1 || miAltura < 40) {
     miAltura = 100;
   }
@@ -527,39 +630,51 @@ void modoConfiguracionAltoAgua() {
     if (flancoSubida(BTN_UP)) {
       if (miAltura < altura) {
         miAltura++;
+
+        notaMas();
+
         sprintf(alturaTxt, "%02d cm", miAltura);
         lcd.setCursor(0, 2);
         lcd.print("                    ");
         lcd.setCursor(0, 2);
         lcd.print(alturaTxt);
+      } else {
+        notaError();
       }
     }
 
     if (flancoSubida(BTN_DWN)) {
       if (miAltura > 0) {
         miAltura--;
+
+        notaMenos();
+
         sprintf(alturaTxt, "%02d cm", miAltura);
         lcd.setCursor(0, 2);
         lcd.print("                    ");
         lcd.setCursor(0, 2);
         lcd.print(alturaTxt);
+      } else {
+        notaError();
       }
     }
 
     if (flancoSubida(BTN_OK)) {
-      EEPROM.put(24, miAltura);
+      EEPROM.put(EE_ALTURA_AGUA, miAltura);
       lcd.setCursor(0, 3);
       lcd.print("                    ");
       lcd.setCursor(5, 3);
       lcd.print("Guardado!");
-      delay(1000);
+      notaAdelante();
+      delay(500);
       lcd.setCursor(0, 3);
       lcd.print("                    ");
       lcd.setCursor(5, 3);
       lcd.print("Saliendo!");
       notaFinal();
-      //delay(1000);
+
       altura_max_agua = miAltura;
+      delay(100);
       modo = M_MONITOR;
     }
 
@@ -601,104 +716,122 @@ void efectoInicial() {
     for (int k = 0; k < 16; k++) {
 
       lcd.setCursor(k + 2, 1); lcd.print("*");
-      delay(50);
+      delay(30);
     }
 
-    delay(300);
+    delay(200);
 
     lcd.setCursor(0, 1);
     lcd.print("                    ");
     //lcd.clear();
   }
-  delay(1000);
 
-  /* for (int k = 0; k < 4; k++){
-     lcd.noDisplay(); delay(300); lcd.display(); delay(300);
-    }*/
+  notaFinal();
 
   lcd.clear();
   //FIN DEL EFECTO INICIANDO
 }
 
-void notaAtras() {
+void notaError() {
   int melodia[] = {
-    NOTE_E4, NOTE_D4, NOTE_C4, 0
+    NOTE_B2
   };
-
-
-  // note durations: 4 = quarter note, 8 = eighth note, etc.:
 
   int duracionDeNotas[] = {
-    8, 8, 8, 8
+    10
   };
-
-  // iterate over the notes of the melody:
-  for (int estaNota = 0; estaNota < 4; estaNota++) {
-    // to calculate the note duration, take one second divided by the note type.
-    //e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc.
-    int duracionNota = 1000 / duracionDeNotas[estaNota] / 2;
+  for (int estaNota = 0; estaNota < 5; estaNota++) {
+    int duracionNota = 1000 / duracionDeNotas[estaNota] / 2.2;
     tone(BUZZER, melodia[estaNota], duracionNota);
-    // to distinguish the notes, set a minimum time between them.
-    // the note's duration + 30% seems to work well:
     int pausaEntreNotas = duracionNota * 1.30;
     delay(pausaEntreNotas);
-    // stop the tone playing:
+    noTone(BUZZER);
+  }
+}
+
+void notaMas() {
+  int melodia[] = {
+    NOTE_A5
+  };
+
+  int duracionDeNotas[] = {
+    10
+  };
+  for (int estaNota = 0; estaNota < 2; estaNota++) {
+    int duracionNota = 1000 / duracionDeNotas[estaNota] / 2.2;
+    tone(BUZZER, melodia[estaNota], duracionNota);
+    int pausaEntreNotas = duracionNota * 1.30;
+    delay(pausaEntreNotas);
+    noTone(BUZZER);
+  }
+}
+
+void notaMenos() {
+  int melodia[] = {
+    NOTE_F4
+  };
+
+  int duracionDeNotas[] = {
+    10
+  };
+  for (int estaNota = 0; estaNota < 2; estaNota++) {
+    int duracionNota = 1000 / duracionDeNotas[estaNota] / 2.2;
+    tone(BUZZER, melodia[estaNota], duracionNota);
+    int pausaEntreNotas = duracionNota * 1.30;
+    delay(pausaEntreNotas);
+    noTone(BUZZER);
+  }
+}
+
+void notaAtras() {
+  int melodia[] = {
+    NOTE_E5, NOTE_G4, NOTE_F4
+  };
+
+  int duracionDeNotas[] = {
+    10, 10, 3
+  };
+  for (int estaNota = 0; estaNota < 3; estaNota++) {
+    int duracionNota = 1000 / duracionDeNotas[estaNota] / 2.2;
+    tone(BUZZER, melodia[estaNota], duracionNota);
+    int pausaEntreNotas = duracionNota * 1.30;
+    delay(pausaEntreNotas);
     noTone(BUZZER);
   }
 }
 
 void notaAdelante() {
   int melodia[] = {
-    NOTE_C4, NOTE_D4, NOTE_E4, 0
+    NOTE_F4, NOTE_G4, NOTE_E5
   };
-
-
-  // note durations: 4 = quarter note, 8 = eighth note, etc.:
 
   int duracionDeNotas[] = {
-    8, 8, 8, 8
+    10, 10, 3
   };
 
-  // iterate over the notes of the melody:
-  for (int estaNota = 0; estaNota < 4; estaNota++) {
-    // to calculate the note duration, take one second divided by the note type.
-    //e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc.
-    int duracionNota = 1000 / duracionDeNotas[estaNota] / 2;
+  for (int estaNota = 0; estaNota < 3; estaNota++) {
+    int duracionNota = 1000 / duracionDeNotas[estaNota] / 2.2;
     tone(BUZZER, melodia[estaNota], duracionNota);
-    // to distinguish the notes, set a minimum time between them.
-    // the note's duration + 30% seems to work well:
     int pausaEntreNotas = duracionNota * 1.30;
     delay(pausaEntreNotas);
-    // stop the tone playing:
     noTone(BUZZER);
   }
 }
 
 void notaFinal() {
   int melodia[] = {
-
     NOTE_C4, NOTE_G3, NOTE_G3, NOTE_A3, NOTE_G3, 0, NOTE_B3, NOTE_C4
-
   };
-
-
-  // note durations: 4 = quarter note, 8 = eighth note, etc.:
 
   int duracionDeNotas[] = {
     4, 8, 8, 4, 4, 4, 4, 4
   };
 
-  // iterate over the notes of the melody:
   for (int estaNota = 0; estaNota < 8; estaNota++) {
-    // to calculate the note duration, take one second divided by the note type.
-    //e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc.
-    int duracionNota = 1000 / duracionDeNotas[estaNota] / 2;
+    int duracionNota = 1000 / duracionDeNotas[estaNota] / 2.4;
     tone(BUZZER, melodia[estaNota], duracionNota);
-    // to distinguish the notes, set a minimum time between them.
-    // the note's duration + 30% seems to work well:
     int pausaEntreNotas = duracionNota * 1.30;
     delay(pausaEntreNotas);
-    // stop the tone playing:
     noTone(BUZZER);
   }
 }
