@@ -43,6 +43,115 @@ byte punto[] = {
   B00000
 };
 
+byte baja1[] = {
+  B00100,
+  B10101,
+  B01110,
+  B00100,
+  B00000,
+  B00000,
+  B00000,
+  B00000
+};
+
+byte baja2[] = {
+  B00000,
+  B00100,
+  B00100,
+  B10101,
+  B01110,
+  B00100,
+  B00000,
+  B00000
+};
+
+byte baja3[] = {
+  B00000,
+  B00000,
+  B00000,
+  B00100,
+  B00100,
+  B10101,
+  B01110,
+  B00100
+};
+
+byte sube1[] = {
+  B00000,
+  B00000,
+  B00000,
+  B00000,
+  B00100,
+  B01110,
+  B10101,
+  B00100
+};
+
+byte sube2[] = {
+  B00000,
+  B00000,
+  B00100,
+  B01110,
+  B10101,
+  B00100,
+  B00100,
+  B00000
+};
+
+byte sube3[] = {
+  B00100,
+  B01110,
+  B10101,
+  B00100,
+  B00100,
+  B00000,
+  B00000,
+  B00000
+};
+
+byte carga1[] = {
+  B00100,
+  B00100,
+  B00100,
+  B00100,
+  B00100,
+  B00100,
+  B00100,
+  B00100
+};
+
+byte carga2[] = {
+  B00000,
+  B00001,
+  B00011,
+  B00110,
+  B01100,
+  B11000,
+  B10000,
+  B00000
+};
+
+byte carga3[] = {
+  B00000,
+  B00000,
+  B00000,
+  B11111,
+  B11111,
+  B00000,
+  B00000,
+  B00000
+};
+
+byte carga4[] = {
+  B00000,
+  B10000,
+  B11000,
+  B01100,
+  B00110,
+  B00011,
+  B00001,
+  B00000
+};
 
 //DEFINICIONES PARA SENSOR ULTRASONICO
 #define GND_SENSOR 10
@@ -64,12 +173,14 @@ byte punto[] = {
 #define M_CONFIGURACION_ANCHO 3
 #define M_CONFIGURACION_ALTO_SENSOR 4
 #define M_CONFIGURACION_ALTO_AGUA 5
+#define M_CONFIGURACION_FACTOR_CORRECCION 6
 
 //DEFINICIONES DE LAS DIRECCIONES DE MEMORIA EEPROM PARA LAS MEDIDAS DEL TANQUE
 #define EE_LARGO 0
 #define EE_ANCHO 2
 #define EE_ALTURA 4
 #define EE_ALTURA_AGUA 6
+#define EE_FACTOR_CORRECCION 8
 
 #define ALTURA_MAXIMA 400;
 
@@ -77,12 +188,21 @@ volatile int modo = M_MONITOR; //Modo actual
 
 //VARIABLES
 int dist = 0;
-unsigned int altura = 100, largo = 100, ancho = 100, altura_max_agua = 0;
+unsigned int altura = 100, largo = 100, ancho = 100, altura_max_agua = 0, factor_correccion = 0;
+int altura_agua_cm_inicial, altura_agua_cm_actual;
 
 
-char hora[12];
-unsigned long tiempoPre, tiempoPas = 0;
-int H = 0, M = 0, S = 0;
+
+unsigned long tiempoInicial, tiempoActual;
+
+
+//CONSTANTES DE CONVERSION PARA MONITOREO Y LLENADO
+#define BARRIL_x_METRO_3 6.29
+#define GLS_x_BARRIL 42
+#define MIN_CAMBIO_CM 3
+#define EST_LLENANDO 0
+#define EST_CALCULANDO 1
+#define EST_VACIANDO 3
 
 
 void setup() {
@@ -126,6 +246,7 @@ void setup() {
   EEPROM.get(EE_ANCHO, ancho);
   EEPROM.get(EE_ALTURA, altura);
   EEPROM.get(EE_ALTURA_AGUA, altura_max_agua);
+  EEPROM.get(EE_FACTOR_CORRECCION, factor_correccion);
 
   //Llamar al efecto de inicio
   efectoInicial();
@@ -160,6 +281,10 @@ void loop() {
     case M_CONFIGURACION_ALTO_AGUA:
       lcd.clear();
       modoConfiguracionAltoAgua();
+      break;
+    case M_CONFIGURACION_FACTOR_CORRECCION:
+      lcd.clear();
+      modoConfiguracionFactorCorreccion();
       break;
   }
 }
@@ -218,6 +343,15 @@ void cambioModo() {
         modo = M_MONITOR;
       }
       if (valorBtnModo_flanco && valorBtnOK == HIGH) {
+        modo = M_CONFIGURACION_FACTOR_CORRECCION;
+
+      }
+      break;
+    case M_CONFIGURACION_FACTOR_CORRECCION:
+      if (valorBtnModo_flanco && valorBtnOK == LOW) {
+        modo = M_MONITOR;
+      }
+      if (valorBtnModo_flanco && valorBtnOK == HIGH) {
         modo = M_CONFIGURACION_LARGO;
 
       }
@@ -248,7 +382,7 @@ void modoMonitor() {
   notaAtras();
 
   boolean p = true;
- 
+
   while (modo == M_MONITOR) {
 
     //mostrarDistancia();
@@ -264,8 +398,8 @@ void modoMonitor() {
 
     float vol_agua_m = (float)largo_m * ancho_m * altura_agua_m;
 
-    float vol_agua_barriles = (float)vol_agua_m * 6.29;
-    float vol_agua_galones = (float)vol_agua_barriles * 42;
+    float vol_agua_barriles = (float)vol_agua_m * BARRIL_x_METRO_3;
+    float vol_agua_galones = (float)vol_agua_barriles * GLS_x_BARRIL;
 
     if (p) {
       lcd.setCursor(19, 0);
@@ -291,7 +425,7 @@ void modoMonitor() {
       lcd.setCursor(0, 3);
       lcd.print("Hay "); lcd.print(vol_agua_barriles); lcd.print(" barriles");
     }
-    delay(500);
+    delay(250);
   }
 }
 
@@ -300,20 +434,36 @@ void modoLlenando() {
   lcd.setCursor(4, 0);
   lcd.print("* LLENANDO *");
 
-  //unsigned long t = millis();
-  H = 0;
-  M = 0;
-  S = 0;
+  lcd.setCursor(0, 3);
+  lcd.print("     CALCULANDO     ");
+
+
+  int cm_llenados = 0;
+  int estado_llenado = 0;
+  int d = 0;
+  int d_a = 0;
+  int altura_agua_cm = 0;
+  float altura_agua_m =  0.00;
+  float largo_m = 0.00;
+  float ancho_m = 0.00;
+  float altura_maxima_agua_m = 0.00;
+  float porcentaje_agua = 0.00;
+  int p_a = 0;
+  unsigned long tt = 0;
 
   notaAdelante();
 
   boolean p = true;
 
-  while (modo == M_LLENADO) {
-    mostrarDistancia();
-    tiempoPre = millis();
-    mostrarTiempo();
+  d = obtenerDistancia();
+  altura_agua_cm_inicial = altura - d;
+  int altura_agua_cm_inicial_i = altura_agua_cm_inicial;
 
+  tiempoInicial = millis();
+
+
+  while (modo == M_LLENADO) {
+    
     if (p) {
       lcd.setCursor(19, 0);
       lcd.write((byte)1);
@@ -323,8 +473,75 @@ void modoLlenando() {
     }
     p = !p;
 
+    //Calculo de tiempo de llenado
+    tiempoActual = millis();
+    d = obtenerDistancia();
+    altura_agua_cm = altura - d;
+    altura_agua_m = (float)altura_agua_cm / 100;
+    largo_m = (float)largo / 100;
+    ancho_m = (float)ancho / 100;
+    altura_maxima_agua_m = (float)altura_max_agua / 100;
+    porcentaje_agua = (float)altura_agua_cm / altura_max_agua;
+    p_a  = porcentaje_agua * 100;
 
-    
+    float vol_agua_m = (float)largo_m * ancho_m * altura_agua_m;
+
+    float vol_agua_barriles = (float)vol_agua_m * BARRIL_x_METRO_3;
+    float vol_agua_galones = (float)vol_agua_barriles * GLS_x_BARRIL;
+
+    altura_agua_cm_actual = altura_agua_cm;
+
+    if ((altura_agua_cm_actual - altura_agua_cm_inicial_i) > 0) { //Llenando
+      altura_agua_cm_inicial_i = altura_agua_cm_actual;
+      estado_llenado = EST_LLENANDO;
+
+      if ((altura_agua_cm_actual - altura_agua_cm_inicial) >= MIN_CAMBIO_CM) { //Calcular tiempo de llenado
+
+        cm_llenados = altura_agua_cm_actual - altura_agua_cm_inicial;
+        tt = abs(tiempoActual - tiempoInicial);
+        altura_agua_cm_inicial = altura_agua_cm_actual;
+        tiempoInicial = tiempoActual;
+        
+        calcularTiempoLLenado(altura_agua_cm_inicial, cm_llenados, tt);
+
+        altura_agua_cm_inicial = altura_agua_cm_actual;
+        estado_llenado = EST_LLENANDO;
+
+      } 
+
+    } else if ((altura_agua_cm_actual - altura_agua_cm_inicial_i) < 0) {//Vaciando
+      altura_agua_cm_inicial_i = altura_agua_cm_actual;
+      estado_llenado = EST_VACIANDO;
+    }
+
+    if (d_a != d) {
+      d_a = d;
+      lcd.setCursor(0, 1);
+      lcd.print("                    ");
+      lcd.setCursor(0, 1); lcd.print(altura_agua_m); lcd.print(" m de agua");
+
+      lcd.setCursor(0, 2);
+      lcd.print("                    ");
+      lcd.setCursor(0, 2); lcd.print(vol_agua_galones); lcd.print(" gal. "); lcd.print(p_a); lcd.print("%");
+    }
+
+    switch (estado_llenado) {
+      case EST_LLENANDO:
+        mostrarSubiendo();
+        break;//Fin monitor
+      case EST_CALCULANDO:
+        mostrarCalculando();
+        lcd.setCursor(0, 3);
+        lcd.print("     CALCULANDO     ");
+        break;
+      case EST_VACIANDO:
+        //lcd.setCursor(0, 3);
+        //lcd.print("");
+        mostrarBajando();
+        break;
+    }
+
+    delay(250);
   }
 }
 
@@ -340,29 +557,31 @@ void mostrarDistancia() {
   lcd.print(" cm");
 }
 
-void mostrarTiempo() {
-  //manejo de tiempo
-  //tiempoPre = micros();
-  if (tiempoPre - tiempoPas > 499) {
-    S++;
-    tiempoPas = tiempoPre;
-  }
+void calcularTiempoLLenado(int altura_inicial_agua, int cm_llenados, unsigned long tiempo_millis) {
 
-  M += S / 60;
-  S = S % 60;
-  H += M / 60;
-  M = M % 60;
-  H = H % 24;
+  int altura_agua_cm = altura - obtenerDistancia();
 
-  sprintf(hora, "%02d:%02d:%02d", H, M, S);
+  int faltan = altura_max_agua - altura_agua_cm;
+  int partes = faltan / MIN_CAMBIO_CM;
 
-  //lcd.clear();
-  lcd.setCursor(0, 2);
-  lcd.print("TIEMPO =");
+  unsigned long tiempo_millis_restante = abs(partes * tiempo_millis);
 
-  lcd.setCursor(9, 2);
-  lcd.print(hora);
+  char tr[12];
+  int Hr = 0, Mr = 0, Sr = 0;
 
+  int S = tiempo_millis_restante / 1000;
+
+  Mr += Sr / 60;
+  Sr = Sr % 60;
+  Hr += Mr / 60;
+  Mr = Mr % 60;
+  
+  sprintf(tr, "Falta: %02d:%02d:%02d", Hr, Mr, Sr);
+
+  lcd.setCursor(0, 3);
+  lcd.print("                    ");
+  lcd.setCursor(0, 3);
+  lcd.print(tr);
 }
 
 int obtenerDistancia() {
@@ -375,7 +594,7 @@ int obtenerDistancia() {
 
   duracion = pulseIn(ECHO, HIGH);  // con funcion pulseIn se espera un pulso
   // alto en Echo
-  distancia = duracion / 29.0; //58.0;    // distancia medida en centimetros 58.2
+  distancia = (duracion / 29.0) + factor_correccion; //58.0;    // distancia medida en centimetros 58.2
   delay(100);       // demora entre datos
   return distancia;
 }
@@ -479,7 +698,7 @@ void modoConfiguracionA() {
   sprintf(anchoTxt, "%02d cm", miAncho);
   lcd.setCursor(0, 2);
   lcd.print(anchoTxt);
-  delay(800);
+  delay(500);
   while (modo == M_CONFIGURACION_ANCHO) {
     if (flancoSubida(BTN_UP)) {
       if (miAncho < 3000) {
@@ -552,7 +771,7 @@ void modoConfiguracionAltoSensor() {
   sprintf(alturaTxt, "%02d cm", miAltura);
   lcd.setCursor(0, 2);
   lcd.print(alturaTxt);
-  delay(800);
+  delay(500);
   while (modo == M_CONFIGURACION_ALTO_SENSOR) {
     if (flancoSubida(BTN_UP)) {
       if (miAltura < 600) {
@@ -625,7 +844,7 @@ void modoConfiguracionAltoAgua() {
   sprintf(alturaTxt, "%02d cm", miAltura);
   lcd.setCursor(0, 2);
   lcd.print(alturaTxt);
-  delay(800);
+  delay(500);
   while (modo == M_CONFIGURACION_ALTO_AGUA) {
     if (flancoSubida(BTN_UP)) {
       if (miAltura < altura) {
@@ -667,13 +886,89 @@ void modoConfiguracionAltoAgua() {
       lcd.print("Guardado!");
       notaAdelante();
       delay(500);
+      
+      altura_max_agua = miAltura;
+      delay(100);
+      modo = M_CONFIGURACION_FACTOR_CORRECCION;
+    }
+
+  }
+}
+
+
+void modoConfiguracionFactorCorreccion() {
+  lcd.setCursor(2, 0);
+  lcd.print("* CONFIGURACION *");
+  lcd.setCursor(0, 1);
+  lcd.print("Factor de Correccion: ");
+
+  lcd.setCursor(0, 3);
+  lcd.print("  M    ");
+  lcd.setCursor(7, 3);
+  lcd.write((byte)0);
+  lcd.setCursor(12, 3);
+  lcd.print("-    +");
+
+  int miFactor = 0;
+  char factorTxt[8];
+
+  EEPROM.get(EE_FACTOR_CORRECCION, miFactor);
+  if (miFactor < -20 || miFactor > 20) {
+    miFactor = 0;
+  }
+
+  sprintf(factorTxt, "%02d cm", miFactor);
+  lcd.setCursor(0, 2);
+  lcd.print(factorTxt);
+  delay(500);
+  while (modo == M_CONFIGURACION_FACTOR_CORRECCION) {
+    if (flancoSubida(BTN_UP)) {
+      if (miFactor < 20) {
+        miFactor++;
+
+        notaMas();
+
+        sprintf(factorTxt, "%02d cm", miFactor);
+        lcd.setCursor(0, 2);
+        lcd.print("                    ");
+        lcd.setCursor(0, 2);
+        lcd.print(factorTxt);
+      } else {
+        notaError();
+      }
+    }
+
+    if (flancoSubida(BTN_DWN)) {
+      if (miFactor > -20) {
+        miFactor--;
+
+        notaMenos();
+
+        sprintf(factorTxt, "%02d cm", miFactor);
+        lcd.setCursor(0, 2);
+        lcd.print("                    ");
+        lcd.setCursor(0, 2);
+        lcd.print(factorTxt);
+      } else {
+        notaError();
+      }
+    }
+
+    if (flancoSubida(BTN_OK)) {
+      EEPROM.put(EE_FACTOR_CORRECCION, miFactor);
+      lcd.setCursor(0, 3);
+      lcd.print("                    ");
+      lcd.setCursor(5, 3);
+      lcd.print("Guardado!");
+      notaAdelante();
+      delay(500);
       lcd.setCursor(0, 3);
       lcd.print("                    ");
       lcd.setCursor(5, 3);
       lcd.print("Saliendo!");
       notaFinal();
 
-      altura_max_agua = miAltura;
+      factor_correccion = miFactor;
       delay(100);
       modo = M_MONITOR;
     }
@@ -730,6 +1025,49 @@ void efectoInicial() {
 
   lcd.clear();
   //FIN DEL EFECTO INICIANDO
+}
+
+void mostrarCalculando() {
+  lcd.createChar(2, carga1);
+  lcd.createChar(3, carga2);
+  lcd.createChar(4, carga3);
+  lcd.createChar(5, carga4);
+
+  for (int i = 2; i <= 5; i++) {
+    lcd.setCursor(19, 2);
+    lcd.write((byte)i);
+    delay(100);
+  }
+  lcd.setCursor(19, 2);
+  lcd.print(" ");
+}
+
+void mostrarSubiendo() {
+  lcd.createChar(2, sube1);
+  lcd.createChar(3, sube2);
+  lcd.createChar(4, sube3);
+
+  for (int i = 2; i <= 4; i++) {
+    lcd.setCursor(19, 2);
+    lcd.write((byte)i);
+    delay(100);
+  }
+  lcd.setCursor(19, 2);
+  lcd.print(" ");
+}
+
+void mostrarBajando() {
+  lcd.createChar(2, baja1);
+  lcd.createChar(3, baja2);
+  lcd.createChar(4, baja3);
+
+  for (int i = 2; i <= 4; i++) {
+    lcd.setCursor(19, 2);
+    lcd.write((byte)i);
+    delay(100);
+  }
+  lcd.setCursor(19, 2);
+  lcd.print(" ");
 }
 
 void notaError() {
