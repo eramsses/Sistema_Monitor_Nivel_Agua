@@ -21,137 +21,30 @@ uint8_t estado_boton[4]; //Guarda el estado de los botones
 uint8_t valorBtnOK;
 uint8_t valorBtnModo_flanco;
 
-byte check[] = {
-  B00000,
-  B00001,
-  B00011,
-  B10110,
-  B11100,
-  B01000,
-  B00000,
-  B00000
-};
+//CARACTERES ESPECIALES
+byte check[] = {B00000, B00001, B00011, B10110, B11100, B01000, B00000, B00000};
 
-byte punto[] = {
-  B00011,
-  B00011,
-  B00000,
-  B00000,
-  B00000,
-  B00000,
-  B00000,
-  B00000
-};
+byte punto[] = {B00011, B00011, B00000, B00000, B00000, B00000, B00000, B00000};
 
-byte baja1[] = {
-  B00100,
-  B10101,
-  B01110,
-  B00100,
-  B00000,
-  B00000,
-  B00000,
-  B00000
-};
+byte baja1[] = {B00100, B10101, B01110, B00100, B00000, B00000, B00000, B00000};
 
-byte baja2[] = {
-  B00000,
-  B00100,
-  B00100,
-  B10101,
-  B01110,
-  B00100,
-  B00000,
-  B00000
-};
+byte baja2[] = {B00000, B00100, B00100, B10101, B01110, B00100, B00000, B00000};
 
-byte baja3[] = {
-  B00000,
-  B00000,
-  B00000,
-  B00100,
-  B00100,
-  B10101,
-  B01110,
-  B00100
-};
+byte baja3[] = { B00000, B00000, B00000, B00100, B00100, B10101, B01110, B00100};
 
-byte sube1[] = {
-  B00000,
-  B00000,
-  B00000,
-  B00000,
-  B00100,
-  B01110,
-  B10101,
-  B00100
-};
+byte sube1[] = {B00000, B00000, B00000, B00000, B00100, B01110, B10101, B00100};
 
-byte sube2[] = {
-  B00000,
-  B00000,
-  B00100,
-  B01110,
-  B10101,
-  B00100,
-  B00100,
-  B00000
-};
+byte sube2[] = {B00000, B00000, B00100, B01110, B10101, B00100, B00100, B00000};
 
-byte sube3[] = {
-  B00100,
-  B01110,
-  B10101,
-  B00100,
-  B00100,
-  B00000,
-  B00000,
-  B00000
-};
+byte sube3[] = {B00100, B01110, B10101, B00100, B00100, B00000, B00000, B00000};
 
-byte carga1[] = {
-  B00100,
-  B00100,
-  B00100,
-  B00100,
-  B00100,
-  B00100,
-  B00100,
-  B00100
-};
+byte carga1[] = {B00100, B00100, B00100, B00100, B00100, B00100, B00100, B00100};
 
-byte carga2[] = {
-  B00000,
-  B00001,
-  B00011,
-  B00110,
-  B01100,
-  B11000,
-  B10000,
-  B00000
-};
+byte carga2[] = {B00000, B00001, B00011, B00110, B01100, B11000, B10000, B00000};
 
-byte carga3[] = {
-  B00000,
-  B00000,
-  B00000,
-  B11111,
-  B11111,
-  B00000,
-  B00000,
-  B00000
-};
+byte carga3[] = {B00000, B00000, B00000, B11111, B11111, B00000, B00000, B00000};
 
-byte carga4[] = {
-  B00000,
-  B10000,
-  B11000,
-  B01100,
-  B00110,
-  B00011,
-  B00001,
-  B00000
-};
+byte carga4[] = {B00000, B10000, B11000, B01100, B00110, B00011, B00001, B00000};
 
 //DEFINICIONES PARA SENSOR ULTRASONICO
 #define GND_SENSOR 10
@@ -191,10 +84,7 @@ int dist = 0;
 unsigned int altura = 100, largo = 100, ancho = 100, altura_max_agua = 0, factor_correccion = 0;
 int altura_agua_cm_inicial, altura_agua_cm_actual;
 
-
-
 unsigned long tiempoInicial, tiempoActual;
-
 
 //CONSTANTES DE CONVERSION PARA MONITOREO Y LLENADO
 #define BARRIL_x_METRO_3 6.29
@@ -463,7 +353,7 @@ void modoLlenando() {
 
 
   while (modo == M_LLENADO) {
-    
+
     if (p) {
       lcd.setCursor(19, 0);
       lcd.write((byte)1);
@@ -501,15 +391,19 @@ void modoLlenando() {
         tt = abs(tiempoActual - tiempoInicial);
         altura_agua_cm_inicial = altura_agua_cm_actual;
         tiempoInicial = tiempoActual;
-        
+
         calcularTiempoLLenado(altura_agua_cm_inicial, cm_llenados, tt);
 
         altura_agua_cm_inicial = altura_agua_cm_actual;
         estado_llenado = EST_LLENANDO;
 
-      } 
+      }
 
     } else if ((altura_agua_cm_actual - altura_agua_cm_inicial_i) < 0) {//Vaciando
+
+      if (altura_agua_cm_actual - altura_agua_cm_inicial_i > 10) {
+        altura_agua_cm_inicial = altura_agua_cm_actual;
+      }
       altura_agua_cm_inicial_i = altura_agua_cm_actual;
       estado_llenado = EST_VACIANDO;
     }
@@ -561,21 +455,21 @@ void calcularTiempoLLenado(int altura_inicial_agua, int cm_llenados, unsigned lo
 
   int altura_agua_cm = altura - obtenerDistancia();
 
-  int faltan = altura_max_agua - altura_agua_cm;
-  int partes = faltan / MIN_CAMBIO_CM;
+  int faltan = altura_max_agua - altura_inicial_agua - cm_llenados;
+  float partes = (faltan / MIN_CAMBIO_CM);
 
   unsigned long tiempo_millis_restante = abs(partes * tiempo_millis);
 
   char tr[12];
   int Hr = 0, Mr = 0, Sr = 0;
 
-  int S = tiempo_millis_restante / 1000;
+  Sr = tiempo_millis_restante / 1000;
 
   Mr += Sr / 60;
   Sr = Sr % 60;
   Hr += Mr / 60;
   Mr = Mr % 60;
-  
+
   sprintf(tr, "Falta: %02d:%02d:%02d", Hr, Mr, Sr);
 
   lcd.setCursor(0, 3);
@@ -595,6 +489,10 @@ int obtenerDistancia() {
   duracion = pulseIn(ECHO, HIGH);  // con funcion pulseIn se espera un pulso
   // alto en Echo
   distancia = (duracion / 29.0) + factor_correccion; //58.0;    // distancia medida en centimetros 58.2
+
+  if (distancia < 0) {
+    distancia = 0;
+  }
   delay(100);       // demora entre datos
   return distancia;
 }
@@ -886,7 +784,7 @@ void modoConfiguracionAltoAgua() {
       lcd.print("Guardado!");
       notaAdelante();
       delay(500);
-      
+
       altura_max_agua = miAltura;
       delay(100);
       modo = M_CONFIGURACION_FACTOR_CORRECCION;
@@ -978,13 +876,10 @@ void modoConfiguracionFactorCorreccion() {
 
 uint8_t flancoSubida(int btn) {
   uint8_t valorNuevo = digitalRead(boton[btn]);//recupera el valor del estado del btn
-  //Serial.println(valorNuevo);
   uint8_t resultado = estado_boton[btn] != valorNuevo && valorNuevo == 1;
-  //Serial.println(resultado);
   estado_boton[btn] = valorNuevo;
 
   return resultado;
-
 }
 
 void efectoInicial() {
@@ -1018,7 +913,7 @@ void efectoInicial() {
 
     lcd.setCursor(0, 1);
     lcd.print("                    ");
-    //lcd.clear();
+
   }
 
   notaFinal();
@@ -1036,7 +931,7 @@ void mostrarCalculando() {
   for (int i = 2; i <= 5; i++) {
     lcd.setCursor(19, 2);
     lcd.write((byte)i);
-    delay(100);
+    delay(120);
   }
   lcd.setCursor(19, 2);
   lcd.print(" ");
@@ -1050,7 +945,7 @@ void mostrarSubiendo() {
   for (int i = 2; i <= 4; i++) {
     lcd.setCursor(19, 2);
     lcd.write((byte)i);
-    delay(100);
+    delay(120);
   }
   lcd.setCursor(19, 2);
   lcd.print(" ");
@@ -1064,7 +959,7 @@ void mostrarBajando() {
   for (int i = 2; i <= 4; i++) {
     lcd.setCursor(19, 2);
     lcd.write((byte)i);
-    delay(100);
+    delay(120);
   }
   lcd.setCursor(19, 2);
   lcd.print(" ");
