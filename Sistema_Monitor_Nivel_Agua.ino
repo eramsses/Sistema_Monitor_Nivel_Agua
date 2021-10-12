@@ -51,6 +51,7 @@ byte carga4[] = {B00000, B10000, B11000, B01100, B00110, B00011, B00001, B00000}
 #define VCC_SENSOR 11
 #define TRIG 12 //Trigger en pin A7
 #define ECHO 13 //Echo en pin 10
+#define MUESTRA 200
 
 //DEFINICIONES PARA LEDs
 #define LED_AMARILLO 7
@@ -103,7 +104,7 @@ void setup() {
   digitalWrite(GND_SENSOR, LOW); // 0v activo
   digitalWrite(VCC_SENSOR, HIGH); //+5v activo
   pinMode(TRIG, OUTPUT);  // trigger como salida
-  pinMode(ECHO, INPUT);    // echo como entrada
+  pinMode(ECHO, INPUT_PULLUP);    // echo como entrada
   delay(100);
   //Inicialización de pines de los LEDs
   pinMode(LED_AMARILLO, OUTPUT);   // LED para bomba
@@ -456,7 +457,7 @@ void calcularTiempoLLenado(int altura_inicial_agua, int cm_llenados, unsigned lo
   int altura_agua_cm = altura - obtenerDistancia();
 
   int faltan = altura_max_agua - altura_inicial_agua - cm_llenados;
-  float partes = (faltan / MIN_CAMBIO_CM);
+  float partes = (faltan / cm_llenados);
 
   unsigned long tiempo_millis_restante = abs(partes * tiempo_millis);
 
@@ -478,6 +479,7 @@ void calcularTiempoLLenado(int altura_inicial_agua, int cm_llenados, unsigned lo
   lcd.print(tr);
 }
 
+/*
 int obtenerDistancia() {
   int duracion;
   int distancia;
@@ -494,6 +496,38 @@ int obtenerDistancia() {
     distancia = 0;
   }
   delay(100);       // demora entre datos
+  return distancia;
+}*/
+
+int obtenerDistancia(){
+  int sumaDistancias = 0;
+  int distanciaPromedio = 0;
+
+  for(int i = 0; i < MUESTRA; i++){
+    sumaDistancias += obtenerDistanciaSimple();
+  }
+  distanciaPromedio = sumaDistancias / MUESTRA;
+
+  return distanciaPromedio;
+}
+
+int obtenerDistanciaSimple(){
+  int duracion;
+  int distancia;
+  
+  digitalWrite(TRIG, LOW);
+  delayMicroseconds(2);
+
+  digitalWrite(TRIG, HIGH);
+  delayMicroseconds(20);
+
+  digitalWrite(TRIG, LOW);
+
+  duracion = pulseIn(ECHO, HIGH, 260000);
+
+  distancia = (duracion / 29.0) - (factor_correccion); //58.0;    // distancia medida en centimetros 58.2
+
+  delay(50);       // demora entre datos
   return distancia;
 }
 
