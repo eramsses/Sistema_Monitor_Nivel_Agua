@@ -18,7 +18,7 @@ uint8_t boton[4] = {3, 4, 5, 6};
 
 uint8_t estado_boton[4]; //Guarda el estado de los botones
 
-uint8_t valorBtnOK;
+uint8_t valorBtnOK, valorBtnUP, valorBtnDWN;
 uint8_t valorBtnModo_flanco;
 
 //CARACTERES ESPECIALES
@@ -51,7 +51,7 @@ byte carga4[] = {B00000, B10000, B11000, B01100, B00110, B00011, B00001, B00000}
 #define VCC_SENSOR 11
 #define TRIG 12 //Trigger en pin A7
 #define ECHO 13 //Echo en pin 10
-#define MUESTRA 200
+#define MUESTRA 10
 
 //DEFINICIONES PARA LEDs
 #define LED_AMARILLO 7
@@ -527,7 +527,7 @@ int obtenerDistanciaSimple(){
 
   distancia = (duracion / 29.0) - (factor_correccion); //58.0;    // distancia medida en centimetros 58.2
 
-  delay(50);       // demora entre datos
+  delay(20);       // demora entre datos
   return distancia;
 }
 
@@ -602,6 +602,42 @@ void modoConfiguracionL() {
       modo = M_CONFIGURACION_ANCHO;
     }
 
+    //Cuando se mantiene presionado
+    valorBtnUP = digitalRead(boton[BTN_UP]);//recupera el valor del estado del btn
+    valorBtnDWN = digitalRead(boton[BTN_DWN]);//recupera el valor del estado del btn
+
+    if(valorBtnUP == LOW){
+      if (miLargo < 3000) {
+        miLargo++;
+
+        notaMas();
+
+        sprintf(largoTxt, "%02d cm", miLargo);
+        lcd.setCursor(0, 2);
+        lcd.print("                    ");
+        lcd.setCursor(0, 2);
+        lcd.print(largoTxt);
+      } else {
+        notaError();
+      }
+    }
+
+    if(valorBtnDWN == LOW){
+      if (miLargo > 0) {
+        miLargo--;
+
+        notaMenos();
+
+        sprintf(largoTxt, "%02d cm", miLargo);
+        lcd.setCursor(0, 2);
+        lcd.print("                    ");
+        lcd.setCursor(0, 2);
+        lcd.print(largoTxt);
+      } else {
+        notaError();
+      }
+    }
+    
   }
 }
 
@@ -674,6 +710,42 @@ void modoConfiguracionA() {
       delay(500);
       ancho = miAncho;
       modo = M_CONFIGURACION_ALTO_SENSOR;
+    }
+
+    //Cuando se mantiene presionado
+    valorBtnUP = digitalRead(boton[BTN_UP]);//recupera el valor del estado del btn
+    valorBtnDWN = digitalRead(boton[BTN_DWN]);//recupera el valor del estado del btn
+
+    if(valorBtnUP == LOW){
+      if (miAncho < 3000) {
+        miAncho++;
+
+        notaMas();
+
+        sprintf(anchoTxt, "%02d cm", miAncho);
+        lcd.setCursor(0, 2);
+        lcd.print("                    ");
+        lcd.setCursor(0, 2);
+        lcd.print(anchoTxt);
+      } else {
+        notaError();
+      }
+    }
+
+    if(valorBtnDWN == LOW){
+      if (miAncho > 0) {
+        miAncho--;
+
+        notaMenos();
+
+        sprintf(anchoTxt, "%02d cm", miAncho);
+        lcd.setCursor(0, 2);
+        lcd.print("                    ");
+        lcd.setCursor(0, 2);
+        lcd.print(anchoTxt);
+      } else {
+        notaError();
+      }
     }
 
   }
@@ -749,6 +821,42 @@ void modoConfiguracionAltoSensor() {
       modo = M_CONFIGURACION_ALTO_AGUA;
     }
 
+    //Cuando se mantiene presionado
+    valorBtnUP = digitalRead(boton[BTN_UP]);//recupera el valor del estado del btn
+    valorBtnDWN = digitalRead(boton[BTN_DWN]);//recupera el valor del estado del btn
+
+    if(valorBtnUP == LOW){
+      if (miAltura < 600) {
+        miAltura++;
+
+        notaMas();
+
+        sprintf(alturaTxt, "%02d cm", miAltura);
+        lcd.setCursor(0, 2);
+        lcd.print("                    ");
+        lcd.setCursor(0, 2);
+        lcd.print(alturaTxt);
+      } else {
+        notaError();
+      }
+    }
+
+    if(valorBtnDWN == LOW){
+      if (miAltura > 40) {
+        miAltura--;
+
+        notaMenos();
+
+        sprintf(alturaTxt, "%02d cm", miAltura);
+        lcd.setCursor(0, 2);
+        lcd.print("                    ");
+        lcd.setCursor(0, 2);
+        lcd.print(alturaTxt);
+      } else {
+        notaError();
+      }
+    }
+    
   }
 }
 
@@ -822,6 +930,42 @@ void modoConfiguracionAltoAgua() {
       altura_max_agua = miAltura;
       delay(100);
       modo = M_CONFIGURACION_FACTOR_CORRECCION;
+    }
+
+    //Cuando se mantiene presionado
+    valorBtnUP = digitalRead(boton[BTN_UP]);//recupera el valor del estado del btn
+    valorBtnDWN = digitalRead(boton[BTN_DWN]);//recupera el valor del estado del btn
+
+    if(valorBtnUP == LOW){
+      if (miAltura < altura) {
+        miAltura++;
+
+        notaMas();
+
+        sprintf(alturaTxt, "%02d cm", miAltura);
+        lcd.setCursor(0, 2);
+        lcd.print("                    ");
+        lcd.setCursor(0, 2);
+        lcd.print(alturaTxt);
+      } else {
+        notaError();
+      }
+    }
+
+    if(valorBtnDWN == LOW){
+      if (miAltura > 0) {
+        miAltura--;
+
+        notaMenos();
+
+        sprintf(alturaTxt, "%02d cm", miAltura);
+        lcd.setCursor(0, 2);
+        lcd.print("                    ");
+        lcd.setCursor(0, 2);
+        lcd.print(alturaTxt);
+      } else {
+        notaError();
+      }
     }
 
   }
@@ -903,6 +1047,42 @@ void modoConfiguracionFactorCorreccion() {
       factor_correccion = miFactor;
       delay(100);
       modo = M_MONITOR;
+    }
+
+    //Cuando se mantiene presionado
+    valorBtnUP = digitalRead(boton[BTN_UP]);//recupera el valor del estado del btn
+    valorBtnDWN = digitalRead(boton[BTN_DWN]);//recupera el valor del estado del btn
+
+    if(valorBtnUP == LOW){
+      if (miFactor < 20) {
+        miFactor++;
+
+        notaMas();
+
+        sprintf(factorTxt, "%02d cm", miFactor);
+        lcd.setCursor(0, 2);
+        lcd.print("                    ");
+        lcd.setCursor(0, 2);
+        lcd.print(factorTxt);
+      } else {
+        notaError();
+      }
+    }
+
+    if(valorBtnDWN == LOW){
+      if (miFactor > -20) {
+        miFactor--;
+
+        notaMenos();
+
+        sprintf(factorTxt, "%02d cm", miFactor);
+        lcd.setCursor(0, 2);
+        lcd.print("                    ");
+        lcd.setCursor(0, 2);
+        lcd.print(factorTxt);
+      } else {
+        notaError();
+      }
     }
 
   }
